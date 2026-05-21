@@ -55,7 +55,7 @@ async function apiFetch<T>(url: string, opts: RequestInit = {}, retries = MAX_RE
 }
 
 export async function fetchStats(): Promise<Stats> {
-  return apiFetch<Stats>(`${API}/stats`)
+  return apiFetch<Stats>(`${API}/stats/`)
 }
 
 export async function fetchLogs(success?: string): Promise<AuthLog[]> {

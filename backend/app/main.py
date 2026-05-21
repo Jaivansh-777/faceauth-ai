@@ -35,6 +35,20 @@ app = FastAPI(
     title="FaceAuth AI",
     description="AI-powered facial authentication system",
     version="2.0.0",
+    redirect_slashes=False,
+)
+
+origins = [
+    "https://faceauth-ai-ashen.vercel.app",
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.state.limiter = limiter
@@ -57,26 +71,6 @@ if not frontend_dist:
 assets_path = os.path.join(frontend_dist, "assets")
 if os.path.isdir(assets_path):
     app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
-
-origins_raw = os.getenv("CORS_ORIGINS", "*")
-cors_origins = [o.strip() for o in origins_raw.split(",") if o.strip()]
-
-if cors_origins == ["*"]:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
 
 @app.middleware("http")
@@ -106,8 +100,8 @@ async def root():
 
 
 @app.get("/health")
-def health():
-    return {"status": "ok", "service": "FaceAuth AI", "version": "2.0.0"}
+async def health():
+    return {"status": "ok"}
 
 
 app.include_router(enroll.router)
@@ -132,7 +126,7 @@ async def startup():
     print("FaceAuth backend ready")
 
 
-@app.get("/stats")
+@app.get("/stats/")
 def stats():
     if SessionLocal is None:
         return {
