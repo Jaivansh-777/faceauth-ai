@@ -1,5 +1,7 @@
 import os
+import sys
 import uvicorn
+from sqlalchemy import func
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -8,15 +10,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+print("FaceAuth backend starting...")
+
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.utils.rate_limit import limiter
 
 from app.api import enroll, auth, logs, users, detect
-from app.db.database import engine, Base, SessionLocal
+
+try:
+    from app.db.database import engine, Base, SessionLocal
+    print("Database module loaded")
+except Exception as e:
+    engine = None
+    Base = None
+    SessionLocal = None
+    print(f"Database module load skipped: {e}")
+
 from app.models.user import User, AuthLog
-from sqlalchemy import func
+print("Models loaded")
 
 app = FastAPI(
     title="FaceAuth AI",
@@ -28,6 +41,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+frontend_dist = None
 paths = [
     os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist"),
     os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist"),
@@ -36,14 +50,18 @@ for p in paths:
     if os.path.isdir(os.path.join(p, "assets")):
         frontend_dist = p
         break
-else:
+
+if not frontend_dist:
     frontend_dist = paths[0]
 
 assets_path = os.path.join(frontend_dist, "assets")
 if os.path.isdir(assets_path):
     app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
-cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:4173")
+cors_origins_raw = os.getenv(
+    "CORS_ORIGINS",
+    "https://*.onrender.com,http://localhost:5173,http://localhost:4173",
+)
 cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
 
 app.add_middleware(
@@ -69,6 +87,7 @@ async def security_headers(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    print(f"Unhandled error: {exc}", file=sys.stderr)
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal error occurred. Please try again later."},
@@ -76,12 +95,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/")
-async def serve_frontend():
-    index_path = os.path.join(frontend_dist, "index.html")
-    if os.path.isfile(index_path):
-        with open(index_path) as f:
-            return HTMLResponse(f.read())
-    return {"message": "FaceAuth AI API — frontend not built. Run `cd frontend && npm run build`"}
+async def root():
+    return {"status": "ok", "service": "FaceAuth AI", "version": "2.0.0"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "FaceAuth AI", "version": "2.0.0"}
 
 
 app.include_router(enroll.router)
@@ -90,19 +110,29 @@ app.include_router(logs.router)
 app.include_router(users.router)
 app.include_router(detect.router)
 
+print("All routes loaded")
+
 
 @app.on_event("startup")
 async def startup():
-    Base.metadata.create_all(bind=engine)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": "FaceAuth AI", "version": "2.0.0"}
+    if engine is not None and Base is not None:
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Database tables ensured")
+        except Exception as e:
+            print(f"Database table creation skipped: {e}")
+    else:
+        print("No database — skipping table creation")
+    print("FaceAuth backend ready")
 
 
 @app.get("/stats")
 def stats():
+    if SessionLocal is None:
+        return {
+            "total_users": 0, "total_logs": 0, "success_logs": 0, "failed_logs": 0,
+            "recent_logs": [], "recent_users": [],
+        }
     db = SessionLocal()
     try:
         total_users = db.query(func.count(User.id)).scalar()
@@ -137,17 +167,29 @@ def stats():
                 for u in users_list
             ],
         }
+    except Exception as e:
+        print(f"Stats query failed: {e}")
+        return {
+            "total_users": 0, "total_logs": 0, "success_logs": 0, "failed_logs": 0,
+            "recent_logs": [], "recent_users": [],
+        }
     finally:
-        db.close()
+        if db:
+            db.close()
 
 
 @app.get("/{path:path}")
 async def serve_spa(path: str):
     if path.startswith(("enroll/", "auth/", "logs/", "users/", "stats", "health")):
         return JSONResponse({"detail": "Not found"}, status_code=404)
-    return await serve_frontend()
+    index_path = os.path.join(frontend_dist, "index.html")
+    if os.path.isfile(index_path):
+        with open(index_path) as f:
+            return HTMLResponse(f.read())
+    return {"message": "FaceAuth AI API — frontend not built. Run `cd frontend && npm run build`"}
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8000"))
+    port = int(os.getenv("PORT", "10000"))
+    print(f"Starting uvicorn on port {port}...")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)

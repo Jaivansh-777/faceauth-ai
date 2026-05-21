@@ -9,32 +9,42 @@ FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.72"))
 
 class FaceService:
     def __init__(self):
-        self.model = None
-        self.detector = None
-        self._init_models()
+        self._model = None
+        self._detector = None
+        self._initialized = False
 
-    def _init_models(self):
+    def _ensure_models(self):
+        if self._initialized:
+            return
         try:
             import insightface
             from insightface.app import FaceAnalysis
-            self.app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-            self.app.prepare(ctx_id=0, det_size=(640, 640))
-            self.model = self.app
-            self.detector = self.app
-        except Exception:
-            self.app = None
+            app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+            app.prepare(ctx_id=0, det_size=(640, 640))
+            self._model = app
+            self._detector = app
+            self._initialized = True
+            print("InsightFace models loaded successfully")
+        except Exception as e:
+            self._model = None
+            self._detector = None
+            self._initialized = True
+            print(f"InsightFace model load skipped: {e}")
 
     def is_ready(self) -> bool:
-        return self.app is not None
+        self._ensure_models()
+        return self._model is not None
 
     def detect_faces(self, image: np.ndarray) -> List:
-        if self.app is None:
+        self._ensure_models()
+        if self._model is None:
             return []
-        faces = self.app.get(image)
+        faces = self._model.get(image)
         return faces
 
     def get_embedding(self, image: np.ndarray, face) -> Optional[np.ndarray]:
-        if self.app is None or face is None:
+        self._ensure_models()
+        if self._model is None or face is None:
             return None
         return face.normed_embedding
 
