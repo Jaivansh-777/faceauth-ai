@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>FaceAuth AI</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070a;
+  --surface:#0e0e14;
+  --surface2:#16161f;
+  --surface3:#1e1e2a;
+  --border:#262635;
+  --border-hover:#36364a;
+  --text:#eeeef2;--text2:#8a8a9e;--text3:#5a5a6e;
+  --accent:#6c5ce7;--accent2:#a29bfe;
+  --accent-glow:rgba(108,92,231,.2);
+  --green:#00d68f;--green-bg:rgba(0,214,143,.1);
+  --red:#ff6b6b;--red-bg:rgba(255,107,107,.1);
+  --yellow:#ffd93d;--yellow-bg:rgba(255,217,61,.1);
+  --blue:#5dade2;--blue-bg:rgba(93,173,226,.1);
+  --radius:10px;--radius-sm:6px;
+  --shadow:0 8px 40px rgba(0,0,0,.5);
+  --transition:.25s cubic-bezier(.4,0,.2,1)
+}
+html{height:100%}
+body{
+  font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);display:flex;min-height:100vh;
+  -webkit-font-smoothing:antialiased
+}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* SIDEBAR */
+.sidebar{
+  width:230px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:20;
+  transition:transform var(--transition)
+}
+.sidebar-brand{
+  padding:18px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px
+}
+.sidebar-brand .logo{
+  width:30px;height:30px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:800;color:#fff;flex-shrink:0
+}
+.sidebar-brand h2{font-size:14px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.sidebar-brand span{font-size:10px;color:var(--text3);display:block}
+.sidebar-nav{flex:1;padding:8px 6px;display:flex;flex-direction:column;gap:1px}
+.sidebar-nav button.s-nav{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:9px 12px;border:none;border-radius:var(--radius-sm);
+  background:transparent;color:var(--text2);font-size:12.5px;font-weight:500;
+  cursor:pointer;transition:all var(--transition);text-align:left;
+  position:relative
+}
+.sidebar-nav button.s-nav:hover{background:var(--surface2);color:var(--text)}
+.sidebar-nav button.s-nav .s-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sidebar-nav button.s-nav .s-badge{
+  margin-left:auto;font-size:10px;background:var(--surface3);
+  color:var(--text3);padding:1px 8px;border-radius:10px;transition:all var(--transition)
+}
+.sidebar-nav button.s-nav.active{
+  background:linear-gradient(135deg,var(--accent),#5a4cd1);
+  color:#fff;box-shadow:0 4px 16px var(--accent-glow)
+}
+.sidebar-nav button.s-nav.active .s-badge{background:rgba(255,255,255,.15);color:#fff}
+.sidebar-nav .s-divider{
+  height:1px;background:var(--border);margin:6px 12px
+}
+.sidebar-nav .s-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1px;
+  color:var(--text3);padding:8px 12px 4px
+}
+.sidebar-footer{
+  padding:12px 16px;border-top:1px solid var(--border);
+  font-size:10.5px;color:var(--text3);display:flex;align-items:center;gap:6px
+}
+.sidebar-footer .dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.main-top{
+  padding:14px 24px;border-bottom:1px solid var(--border);
+  background:var(--surface);display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;gap:12px
+}
+.main-top h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.main-top .sub{font-size:11px;color:var(--text3);margin-top:1px}
+.main-body{flex:1;overflow-y:auto;padding:20px 24px}
+.mobile-hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px}
+.sidebar-backdrop{display:none;position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.5)}
+
+/* PAGES */
+.page{display:none;animation:pageIn .3s ease}
+.page.active{display:block}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;margin-bottom:16px;
+  transition:border-color var(--transition)
+}
+.card:hover{border-color:var(--border-hover)}
+.card-h{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;padding-bottom:10px;
+  border-bottom:1px solid var(--border)
+}
+.card-h h2{font-size:13.5px;font-weight:600}
+.card-h .ch-badge{
+  font-size:10px;padding:2px 10px;border-radius:20px;
+  background:var(--surface3);color:var(--text2);font-weight:500
+}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
+  transition:all var(--transition);position:relative;overflow:hidden
+}
+.stat-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:var(--shadow)}
+.stat-card .stat-icon{
+  width:34px;height:34px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;margin-bottom:10px
+}
+.stat-card .stat-val{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.stat-card .stat-lb{font-size:11.5px;color:var(--text3);margin-top:2px}
+.stat-card .stat-bar{
+  position:absolute;bottom:0;left:0;height:3px;border-radius:0 2px 0 0;
+  transition:width .8s ease
+}
+
+/* CHART BARS */
+.chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding:8px 0}
+.chart .bar{
+  flex:1;border-radius:3px 3px 0 0;min-height:4px;
+  transition:height .6s cubic-bezier(.4,0,.2,1);
+  position:relative;cursor:pointer
+}
+.chart .bar:hover{opacity:.8}
+.chart .bar .bar-tip{
+  position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+  font-size:10px;color:var(--text2);margin-bottom:4px;opacity:0;transition:opacity .15s;white-space:nowrap
+}
+.chart .bar:hover .bar-tip{opacity:1}
+.chart-labels{display:flex;gap:6px;margin-top:6px}
+.chart-labels span{flex:1;text-align:center;font-size:9px;color:var(--text3)}
+
+/* FORM */
+.fg{margin-bottom:12px}
+label.f-lb{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:4px}
+input,select{
+  width:100%;padding:9px 12px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-size:13px;outline:none;transition:border var(--transition)
+}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+input::placeholder{color:var(--text3)}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 18px;border:none;border-radius:var(--radius-sm);
+  font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:all var(--transition);white-space:nowrap
+}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent2);box-shadow:0 4px 20px var(--accent-glow);transform:translateY(-1px)}
+.btn-p:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-s{background:var(--green);color:#07070a}
+.btn-s:hover{opacity:.9;transform:translateY(-1px)}
+.btn-s:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn-d{background:var(--red);color:#fff}
+.btn-d:hover{opacity:.9;transform:translateY(-1px)}
+.btn-g{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.btn-g:hover{background:var(--surface3);color:var(--text)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-lg{padding:10px 24px;font-size:13px}
+.btn-block{width:100%}
+
+/* TABLE */
+.tw{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2);transition:background .15s}
+tr:hover td{background:var(--surface2)}
+.es{text-align:center;padding:30px 16px;color:var(--text3)}
+.es .e-icon{font-size:26px;margin-bottom:6px;opacity:.4}
+.es p{font-size:12.5px}
+
+/* BADGE */
+.bdg{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600
+}
+.bdg-g{background:var(--green-bg);color:var(--green)}
+.bdg-r{background:var(--red-bg);color:var(--red)}
+.bdg-y{background:var(--yellow-bg);color:var(--yellow)}
+.bdg-n{background:var(--surface3);color:var(--text2)}
+
+/* STATUS MSG */
+.sm{padding:10px 14px;border-radius:var(--radius-sm);margin-top:10px;font-size:12.5px;display:flex;align-items:flex-start;gap:8px}
+.sm-ok{background:var(--green-bg);border:1px solid rgba(0,214,143,.15);color:var(--green)}
+.sm-fail{background:var(--red-bg);border:1px solid rgba(255,107,107,.15);color:var(--red)}
+.sm .smi{font-size:15px;flex-shrink:0}
+
+/* SPINNER */
+.sp{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* CAMERA */
+.cam-wrap{max-width:480px;margin:0 auto}
+.cam-vw{
+  position:relative;border-radius:var(--radius);overflow:hidden;
+  background:#000;aspect-ratio:4/3;border:1px solid var(--border)
+}
+.cam-vw video,.cam-vw canvas{width:100%;height:100%;display:block;object-fit:cover}
+.cam-ov{
+  position:absolute;inset:0;pointer-events:none
+}
+.cam-ov .frm{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:55%;aspect-ratio:3/4;
+  border:1.5px solid rgba(108,92,231,.35);
+  border-radius:20px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);
+  transition:border-color .3s
+}
+.cam-ov .frm.ok{border-color:rgba(0,214,143,.55)}
+.cam-ov .cl{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.8px;text-transform:uppercase
+}
+.cam-ctrl{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+
+/* SAMPLES GRID */
+.sg{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.sg .sp{
+  width:58px;height:58px;border-radius:var(--radius-sm);overflow:hidden;
+  border:2px solid var(--border);animation:popIn .25s ease;
+  transition:border-color var(--transition)
+}
+.sg .sp img{width:100%;height:100%;object-fit:cover;display:block}
+@keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* PROGRESS */
+.prg{display:flex;align-items:center;gap:10px;margin-top:10px}
+.prg .rng{
+  width:32px;height:32px;border-radius:50%;
+  background:conic-gradient(var(--accent) var(--p,0%),var(--surface2) 0);
+  display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0
+}
+.prg .rng::before{content:'';position:absolute;width:24px;height:24px;border-radius:50%;background:var(--surface)}
+.prg .rng span{position:relative;z-index:1;font-size:9px;font-weight:700;color:var(--text)}
+.prg .lb{font-size:11.5px;color:var(--text2)}
+
+/* TOASTS */
+#tc{position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.tst{
+  padding:10px 16px;border-radius:var(--radius-sm);color:#fff;
+  font-size:12.5px;font-weight:500;display:flex;align-items:center;gap:8px;
+  min-width:260px;max-width:360px;box-shadow:var(--shadow);
+  pointer-events:auto;transform:translateX(120%);opacity:0;
+  transition:all .35s cubic-bezier(.4,0,.2,1)
+}
+.tst.show{transform:translateX(0);opacity:1}
+.tst-ok{background:var(--green);color:#07070a}
+.tst-err{background:var(--red)}
+.tst .cl{ margin-left:auto;cursor:pointer;opacity:.6;background:none;border:none;color:inherit;font-size:15px;padding:0 }
+
+/* ADMIN PIN OVERLAY */
+#adminOverlay{
+  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(6px);display:none;
+  align-items:center;justify-content:center;
+  animation:fadeIn .25s ease
+}
+#adminOverlay.show{display:flex}
+#adminOverlay .pin-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px 32px;width:100%;max-width:340px;
+  box-shadow:var(--shadow)
+}
+#adminOverlay .pin-card h2{font-size:16px;font-weight:600;margin-bottom:4px}
+#adminOverlay .pin-card p{font-size:12px;color:var(--text3);margin-bottom:16px}
+#adminOverlay .pin-card .pin-dots{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+#adminOverlay .pin-card .pin-dots span{
+  width:12px;height:12px;border-radius:50%;background:var(--surface3);
+  border:2px solid var(--border);transition:all .2s
+}
+#adminOverlay .pin-card .pin-dots span.filled{background:var(--accent);border-color:var(--accent)}
+#adminOverlay .pin-card .pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#adminOverlay .pin-card .pin-grid button{
+  padding:14px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface2);color:var(--text);font-size:18px;font-weight:600;
+  cursor:pointer;transition:all .15s
+}
+#adminOverlay .pin-card .pin-grid button:hover{background:var(--surface3);border-color:var(--border-hover)}
+#adminOverlay .pin-card .pin-grid button:active{transform:scale(.95)}
+#adminOverlay .pin-card .pin-err{font-size:11px;color:var(--red);text-align:center;margin-top:10px;min-height:16px}
+
+/* DROPDOWN */
+.dropdown{position:relative;display:inline-block}
+.dropdown-content{
+  position:absolute;top:calc(100%+4px);right:0;min-width:160px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);box-shadow:var(--shadow);
+  opacity:0;visibility:hidden;transform:translateY(-4px);
+  transition:all .2s ease;z-index:10;overflow:hidden
+}
+.dropdown-content.show{opacity:1;visibility:visible;transform:translateY(0)}
+.dropdown-content a,.dropdown-content button{
+  display:block;width:100%;padding:8px 14px;border:none;
+  background:transparent;color:var(--text2);font-size:12px;
+  text-align:left;cursor:pointer;transition:background .15s
+}
+.dropdown-content a:hover,.dropdown-content button:hover{background:var(--surface2);color:var(--text)}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{position:fixed;inset:0;transform:translateX(-100%);width:260px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop.show{display:block}
+  .mobile-hamburger{display:block}
+  .main-top{padding:10px 14px}
+  .main-body{padding:12px 14px}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:12px 14px}
+  .stat-card .stat-val{font-size:20px}
+  .cam-ov .frm{width:70%}
+  .sg .sp{width:48px;height:48px}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr}
+  .stat-card .stat-val{font-size:18px}
+  .main-top h1{font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar-backdrop" id="sdb" onclick="toggleSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">F</div>
+    <div><h2>FaceAuth</h2><span>AI Access Control</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="s-label">Main</div>
+    <button class="s-nav active" data-page="dashboard" onclick="showPage('dashboard')">
+      <span class="s-icon">&#x25A3;</span> Dashboard
+    </button>
+    <button class="s-nav" data-page="enroll" onclick="showPage('enroll')">
+      <span class="s-icon">+</span> Enroll
+    </button>
+    <button class="s-nav" data-page="auth" onclick="showPage('auth')">
+      <span class="s-icon">&#x25B6;</span> Authenticate
+    </button>
+
+    <div class="s-divider"></div>
+    <div class="s-label">Management</div>
+    <button class="s-nav" data-page="logs" onclick="showPage('logs')">
+      <span class="s-icon">&#x2630;</span> Activity Log
+      <span class="s-badge" id="logCountBadge">0</span>
+    </button>
+    <button class="s-nav" data-page="users" onclick="showPage('users')">
+      <span class="s-icon">&#x263C;</span> Users
+      <span class="s-badge" id="userCountBadge">0</span>
+    </button>
+
+    <div class="s-divider"></div>
+    <div class="s-label">Admin</div>
+    <button class="s-nav" id="adminNavBtn" data-page="admin" onclick="openAdmin()">
+      <span class="s-icon">&#x2699;</span> Admin Panel
+      <span class="s-badge" id="adminLockBadge">Locked</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="dot"></span> System Online
+  </div>
+</aside>
+
+<div class="main">
+  <div class="main-top">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="mobile-hamburger" onclick="toggleSidebar()">&#x2630;</button>
+      <div><h1 id="pageTitle">Dashboard</h1>
+      <div class="sub" id="pageSub">System overview and metrics</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="bdg bdg-g" id="liveBadge"><span style="width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite"></span> Live</span>
+    </div>
+  </div>
+
+  <div class="main-body">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-icon" style="background:var(--accent-glow);color:var(--accent)">&#x1F464;</div><div class="stat-val" id="statUsers">—</div><div class="stat-lb">Enrolled Users</div><div class="stat-bar" style="background:var(--accent);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)">&#x2713;</div><div class="stat-val" id="statSuccess">—</div><div class="stat-lb">Successful Auths</div><div class="stat-bar" style="background:var(--green);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--red-bg);color:var(--red)">&#x2718;</div><div class="stat-val" id="statFailed">—</div><div class="stat-lb">Failed Attempts</div><div class="stat-bar" style="background:var(--red);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow)">&#x2630;</div><div class="stat-val" id="statTotal">—</div><div class="stat-lb">Total Requests</div><div class="stat-bar" style="background:var(--yellow);width:0%"></div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:0">
+        <div class="card-h"><h2>Recent Activity</h2><span class="ch-badge">Last 10</span></div>
+        <div class="tw"><table><thead><tr><th>User</th><th>Result</th><th>Confidence</th><th>Time</th></tr></thead><tbody id="dashLogsBody"></tbody></table></div>
+        <div id="dashLogsEmpty" class="es"><div class="e-icon">&#x1F4AD;</div><p>No activity recorded</p></div>
+      </div>
+    </div>
+
+    <!-- ENROLL -->
+    <div id="page-enroll" class="page">
+      <div class="card">
+        <div class="card-h"><h2>Identity Details</h2></div>
+        <div class="fg"><label class="f-lb">Full Name</label><input type="text" id="enroll-name" placeholder="e.g. John Doe" autocomplete="off"></div>
+        <div class="fg"><label class="f-lb">Email (optional)</label><input type="email" id="enroll-email" placeholder="john@example.com" autocomplete="off"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Face Capture</h2><span class="ch-badge" id="enroll-count-badge">0 / 5</span></div>
+        <div class="cam-wrap">
+          <div class="cam-vw">
+            <video id="enroll-video" autoplay playsinline muted></video>
+            <canvas id="enroll-canvas" style="display:none"></canvas>
+            <div class="cam-ov"><div class="frm" id="enroll-frm"></div><div class="cl">Center your face</div></div>
+          </div>
+          <div class="cam-ctrl">
+            <button class="btn btn-g" id="enroll-start-cam" onclick="startCamera('enroll')">&#x25B6; Start Camera</button>
+            <button class="btn btn-s" id="enroll-capture" onclick="captureEnroll()" disabled>+ Capture</button>
+          </div>
+          <div class="sg" id="enroll-preview"></div>
+          <div class="prg" id="enroll-progress"><div class="rng" style="--p:0%"><span>0</span></div><span class="lb">0 of 5 samples</span></div>
+          <button class="btn btn-p btn-lg btn-block" id="enroll-submit" onclick="submitEnroll()" disabled style="margin-top:12px">&#x25B8; Enroll User</button>
+          <div id="enroll-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTH -->
+    <div id="page-auth" class="page">
+      <div class="card">
+        <div class="card-h"><h2>Face Verification</h2><span class="ch-badge">Real-time</span></div>
+        <div class="cam-wrap">
+          <div class="cam-vw">
+            <video id="auth-video" autoplay playsinline muted></video>
+            <canvas id="auth-canvas" style="display:none"></canvas>
+            <div class="cam-ov"><div class="frm" id="auth-frm"></div><div class="cl">Look at the camera</div></div>
+          </div>
+          <div class="cam-ctrl">
+            <button class="btn btn-g" id="auth-start-cam" onclick="startCamera('auth')">&#x25B6; Start Camera</button>
+            <button class="btn btn-p btn-lg" id="auth-capture" onclick="captureAuth()" disabled style="width:100%;margin-top:8px">&#x25B8; Authenticate</button>
+          </div>
+          <div id="auth-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div id="page-logs" class="page">
+      <div class="card">
+        <div class="card-h">
+          <h2>Authentication Logs</h2>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="logs-filter" onchange="fetchLogs()" style="width:auto;padding:4px 8px;font-size:11px">
+              <option value="">All</option><option value="true">Granted</option><option value="false">Denied</option>
+            </select>
+            <button class="btn btn-g btn-sm" onclick="fetchLogs()">&#x21BB;</button>
+          </div>
+        </div>
+        <div class="tw"><table><thead><tr><th>User</th><th>Confidence</th><th>Result</th><th>Camera</th><th>Time</th></tr></thead><tbody id="logs-body"></tbody></table></div>
+        <div id="logs-empty" class="es"><div class="e-icon">&#x1F4AD;</div><p>No logs</p></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="page-users" class="page">
+      <div class="card">
+        <div class="card-h"><h2>Enrolled Users</h2><button class="btn btn-g btn-sm" onclick="fetchUsers()">&#x21BB; Refresh</button></div>
+        <div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th>Embeddings</th><th></th></tr></thead><tbody id="users-body"></tbody></table></div>
+        <div id="users-empty" class="es"><div class="e-icon">&#x1F464;</div><p>No users</p></div>
+      </div>
+    </div>
+
+    <!-- ADMIN (hidden, unlocked via PIN) -->
+    <div id="page-admin" class="page">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon" style="background:var(--accent-glow);color:var(--accent)">&#x1F464;</div><div class="stat-val" id="adminStatUsers">—</div><div class="stat-lb">Total Users</div><div class="stat-bar" style="background:var(--accent);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--blue-bg);color:var(--blue)">&#x2713;</div><div class="stat-val" id="adminStatSuccess">—</div><div class="stat-lb">Success Rate</div><div class="stat-bar" style="background:var(--blue);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow)">&#x2630;</div><div class="stat-val" id="adminStatTotal">—</div><div class="stat-lb">Total Requests</div><div class="stat-bar" style="background:var(--yellow);width:0%"></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)">&#x266B;</div><div class="stat-val" id="adminStatUptime">99.9%</div><div class="stat-lb">System Uptime</div><div class="stat-bar" style="background:var(--green);width:99%"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Activity Distribution</h2><span class="ch-badge">7-day view</span></div>
+        <div class="chart" id="adminChart"></div>
+        <div class="chart-labels" id="adminChartLabels"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:0">
+        <div class="card-h"><h2>Recent Registrations</h2><span class="ch-badge">Last 10</span></div>
+        <div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Active</th><th>Created</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div>
+        <div id="adminUsersEmpty" class="es"><div class="e-icon">&#x1F464;</div><p>No users</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="tc"></div>
+
+<!-- ADMIN PIN OVERLAY -->
+<div id="adminOverlay">
+  <div class="pin-card">
+    <h2>Admin Access</h2>
+    <p>Enter PIN to unlock admin panel</p>
+    <div class="pin-dots" id="pinDots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="pin-grid" id="pinGrid">
+      <button onclick="pinInput('1')">1</button><button onclick="pinInput('2')">2</button><button onclick="pinInput('3')">3</button>
+      <button onclick="pinInput('4')">4</button><button onclick="pinInput('5')">5</button><button onclick="pinInput('6')">6</button>
+      <button onclick="pinInput('7')">7</button><button onclick="pinInput('8')">8</button><button onclick="pinInput('9')">9</button>
+      <button onclick="pinInput('clear')" style="font-size:13px">Clear</button><button onclick="pinInput('0')">0</button>
+      <button onclick="pinInput('back')" style="font-size:13px">&#x2190;</button>
+    </div>
+    <div class="pin-err" id="pinErr"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+const ADMIN_PIN = '1234';
+let enrollSamples = [];
+let currentStream = null;
+let adminUnlocked = false;
+let pinBuffer = '';
+
+const $ = id => document.getElementById(id);
+const qs = (sel,ctx) => (ctx||document).querySelector(sel);
+const qsa = (sel,ctx) => (ctx||document).querySelectorAll(sel);
+const setT = (id,v) => { const e=$(id); if(e) e.textContent=v; };
+const setH = (id,v) => { const e=$(id); if(e) e.innerHTML=v; };
+const setD = (id,v) => { const e=$(id); if(e) e.disabled=v; };
+
+const pgMeta = {
+  dashboard:{t:'Dashboard',s:'System overview and metrics'},
+  enroll:{t:'Enroll User',s:'Register new users with facial biometrics'},
+  auth:{t:'Authenticate',s:'Verify identity with face matching'},
+  logs:{t:'Activity Log',s:'Authentication attempts and access history'},
+  users:{t:'Users',s:'Manage enrolled users'},
+  admin:{t:'Admin Panel',s:'System administration and analytics'}
+};
+
+function toggleSidebar(){
+  $('sidebar').classList.toggle('open');
+  $('sdb').classList.toggle('show');
+}
+
+function showPage(name){
+  qsa('.page').forEach(p=>p.classList.remove('active'));
+  const p=$('page-'+name);
+  if(p){p.classList.add('active');p.style.animation='none';setTimeout(()=>p.style.animation='',10);}
+  qsa('.sidebar-nav button.s-nav').forEach(b=>b.classList.remove('active'));
+  const nb=qs(`.sidebar-nav button.s-nav[data-page="${name}"]`);
+  if(nb)nb.classList.add('active');
+  const m=pgMeta[name];
+  if(m){setT('pageTitle',m.t);setT('pageSub',m.s);}
+  if(window.innerWidth<=768)toggleSidebar();
+  if(name==='dashboard')fetchDashboard();
+  if(name==='logs')fetchLogs();
+  if(name==='users')fetchUsers();
+  if(name==='admin'){if(!adminUnlocked)openAdmin();else fetchAdmin();}
+}
+
+function toast(msg,type='success'){
+  const c=$('tc');if(!c)return;
+  const el=document.createElement('div');
+  el.className='tst tst-'+type;
+  el.innerHTML='<span>'+(type==='success'?'&#x2713;':'&#x2718;')+'</span><span>'+msg+'</span><button class="cl" onclick="this.parentElement.classList.remove(\'show\')">&#x2715;</button>';
+  c.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),400);},3500);
+}
+
+/* PIN */
+function openAdmin(){
+  if(adminUnlocked){showPage('admin');fetchAdmin();return;}
+  $('adminOverlay').classList.add('show');
+  pinBuffer='';updatePinDots();$('pinErr').textContent='';
+}
+function pinInput(v){
+  if(v==='clear'){pinBuffer='';updatePinDots();$('pinErr').textContent='';return;}
+  if(v==='back'){pinBuffer=pinBuffer.slice(0,-1);updatePinDots();return;}
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=v;updatePinDots();
+  if(pinBuffer.length===4){
+    if(pinBuffer===ADMIN_PIN){
+      adminUnlocked=true;
+      $('adminOverlay').classList.remove('show');
+      setT('adminLockBadge','Unlocked');
+      $('adminNavBtn').classList.add('active');
+      showPage('admin');fetchAdmin();
+    }else{
+      $('pinErr').textContent='Incorrect PIN. Try again.';
+      pinBuffer='';setTimeout(updatePinDots,300);
+    }
+  }
+}
+function updatePinDots(){
+  const dots=$('pinDots').querySelectorAll('span');
+  dots.forEach((d,i)=>d.classList.toggle('filled',i<pinBuffer.length));
+}
+
+/* DASHBOARD */
+async function fetchDashboard(){
+  try{
+    const r=await fetch(API+'/stats/');
+    const d=await r.json();
+    setT('statUsers',d.total_users);
+    setT('statSuccess',d.success_logs);
+    setT('statFailed',d.failed_logs);
+    setT('statTotal',d.total_logs);
+    setT('logCountBadge',d.total_logs);
+    setT('userCountBadge',d.total_users);
+    // Animate stat bars
+    setTimeout(()=>{
+      const bars=document.querySelectorAll('#statsGrid .stat-bar');
+      if(d.total_users>0)bars[0].style.width=Math.min(d.total_users/10*100,100)+'%';
+      if(d.success_logs>0)bars[1].style.width=Math.min(d.success_logs/50*100,100)+'%';
+      if(d.failed_logs>0)bars[2].style.width=Math.min(d.failed_logs/50*100,100)+'%';
+      bars[3].style.width=Math.min(d.total_logs/100*100,100)+'%';
+    },100);
+    // Recent logs
+    const tb=$('dashLogsBody');const em=$('dashLogsEmpty');
+    if(!tb||!em)return;tb.innerHTML='';
+    if(!d.recent_logs||d.recent_logs.length===0){em.style.display='block';return;}
+    em.style.display='none';
+    d.recent_logs.forEach(l=>{
+      const ok=l.success;const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+(l.user_name||'—')+'</td>'+
+        '<td><span class="bdg '+(ok?'bdg-g':'bdg-r')+'">'+(ok?'Granted':'Denied')+'</span></td>'+
+        '<td>'+(l.confidence!=null?l.confidence+'%':'—')+'</td>'+
+        '<td>'+(l.timestamp?new Date(l.timestamp).toLocaleString():'—')+'</td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){}
+}
+
+/* ADMIN */
+async function fetchAdmin(){
+  try{
+    const r=await fetch(API+'/stats/');
+    const d=await r.json();
+    setT('adminStatUsers',d.total_users);
+    setT('adminStatTotal',d.total_logs);
+    const rate=d.total_logs>0?Math.round(d.success_logs/d.total_logs*100):0;
+    setT('adminStatSuccess',rate+'%');
+    // Bars
+    setTimeout(()=>{
+      const bars=document.querySelectorAll('#page-admin .stat-bar');
+      if(d.total_users>0)bars[0].style.width=Math.min(d.total_users/20*100,100)+'%';
+      bars[1].style.width=rate+'%';
+      bars[2].style.width=Math.min(d.total_logs/200*100,100)+'%';
+    },100);
+    // Chart
+    renderChart(d);
+    // Recent users
+    const tb=$('adminUsersBody');const em=$('adminUsersEmpty');
+    if(!tb||!em)return;tb.innerHTML='';
+    if(!d.recent_users||d.recent_users.length===0){em.style.display='block';return;}
+    em.style.display='none';
+    d.recent_users.forEach(u=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+u.id+'</td><td>'+u.name+'</td><td>'+(u.email||'—')+'</td>'+
+        '<td><span class="bdg '+(u.is_active?'bdg-g':'bdg-r')+'">'+(u.is_active?'Active':'Inactive')+'</span></td>'+
+        '<td>'+(u.created_at?new Date(u.created_at).toLocaleDateString():'—')+'</td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){}
+}
+
+function renderChart(data){
+  const chart=$('adminChart');const labels=$('adminChartLabels');
+  if(!chart||!labels)return;
+  // Generate 7-day mock distribution from real data
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const total=data.total_logs||0;
+  const vals=days.map((_,i)=>{
+    if(total===0)return Math.floor(Math.random()*3);
+    const base=Math.round(total/7);
+    const variance=Math.round(base*0.3);
+    return Math.max(0,base+Math.floor(Math.random()*variance*2-variance));
+  });
+  const max=Math.max(...vals,1);
+  chart.innerHTML=vals.map(v=>`<div class="bar" style="height:${v/max*100}%;background:var(--accent)"><div class="bar-tip">${v}</div></div>`).join('');
+  labels.innerHTML=days.map(d=>`<span>${d}</span>`).join('');
+}
+
+/* ENROLL */
+function updEnroll(){
+  const n=enrollSamples.length;
+  const pct=Math.min(n/5*100,100);
+  const pr=$('enroll-progress');
+  if(pr){
+    const r=pr.querySelector('.rng');if(r)r.style.setProperty('--p',pct+'%');
+    const s=pr.querySelector('.rng span');if(s)s.textContent=n;
+    const lb=pr.querySelector('.lb');if(lb)lb.textContent=n+' of 5 samples';
+  }
+  setT('enroll-count-badge',n+' / 5');
+  setD('enroll-submit',n<5);
+  const frm=$('enroll-frm');if(frm)frm.classList.toggle('ok',n>=3);
+}
+
+async function startCamera(page){
+  const v=$(page+'-video');if(!v)return;
+  if(currentStream){currentStream.getTracks().forEach(t=>t.stop());currentStream=null;}
+  try{
+    currentStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+    v.srcObject=currentStream;
+    setT(page+'-start-cam','&#x25B6; Camera Active');
+    setD(page+'-capture',false);
+  }catch(e){toast('Camera access denied: '+e.message,'error');}
+}
+
+function captureEnroll(){
+  const v=$('enroll-video');const c=$('enroll-canvas');
+  if(!v||!c)return;
+  c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+  const ctx=c.getContext('2d');
+  ctx.drawImage(v,0,0);
+  c.toBlob(function(blob){
+    if(!blob)return;
+    enrollSamples.push(blob);
+    const prev=$('enroll-preview');
+    if(prev){
+      const el=document.createElement('div');
+      el.className='sp';
+      const img=document.createElement('img');
+      img.src=URL.createObjectURL(blob);
+      el.appendChild(img);
+      // Limit visible samples
+      while(prev.children.length>10)prev.removeChild(prev.firstChild);
+      prev.appendChild(el);
+    }
+    updEnroll();
+  },'image/jpeg',0.85);
+}
+
+async function submitEnroll(){
+  const ne=$('enroll-name');if(!ne)return;
+  const name=ne.value.trim();
+  if(!name){toast('Enter a name','error');return;}
+  if(enrollSamples.length<5){toast('Need 5 samples','error');return;}
+  const btn=$('enroll-submit');const rd=$('enroll-result');
+  if(!btn||!rd)return;
+  btn.disabled=true;btn.innerHTML='<span class="sp"></span> Enrolling...';
+  rd.innerHTML='';
+  const fd=new FormData();
+  fd.append('name',name);
+  const ee=$('enroll-email');
+  fd.append('email',ee?ee.value.trim():'');
+  enrollSamples.forEach((b,i)=>fd.append('files',b,'s_'+i+'.jpg'));
+  try{
+    const r=await fetch(API+'/enroll/',{method:'POST',body:fd});
+    const d=await r.json();
+    if(r.ok){
+      rd.innerHTML='<div class="sm sm-ok"><span class="smi">&#x2714;</span><span><strong>Enrolled</strong><br>ID: '+d.user_id+' &middot; Samples: '+d.samples_enrolled+'</span></div>';
+      enrollSamples=[];const pv=$('enroll-preview');if(pv)pv.innerHTML='';
+      updEnroll();toast('Enrolled: '+name);
+    }else{
+      rd.innerHTML='<div class="sm sm-fail"><span class="smi">&#x2718;</span><span>'+(d.detail||'Failed')+'</span></div>';
+      toast(d.detail||'Failed','error');
+    }
+  }catch(e){
+    rd.innerHTML='<div class="sm sm-fail"><span class="smi">&#x2718;</span><span>Connection error</span></div>';
+    toast('Connection error','error');
+  }
+  btn.disabled=false;btn.innerHTML='&#x25B8; Enroll User';
+}
+
+/* AUTH */
+async function captureAuth(){
+  try{
+    const v=$('auth-video');const c=$('auth-canvas');
+    const btn=$('auth-capture');const rd=$('auth-result');
+    if(!v||!c||!btn||!rd){toast('UI error','error');return;}
+    c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+    c.getContext('2d').drawImage(v,0,0);
+    btn.disabled=true;btn.innerHTML='<span class="sp"></span> Verifying...';
+    rd.innerHTML='';
+    c.toBlob(async function(blob){
+      if(!blob){setH('auth-result','<div class="sm sm-fail"><span class="smi">&#x2718;</span><span>Capture failed</span></div>');btn.disabled=false;btn.innerHTML='&#x25B8; Authenticate';return;}
+      const fd=new FormData();
+      fd.append('file',blob,'auth.jpg');
+      fd.append('camera_id','webcam');
+      try{
+        const r=await fetch(API+'/auth/',{method:'POST',body:fd});
+        const d=await r.json();const ok=d.status==='granted';
+        rd.innerHTML='<div class="sm '+(ok?'sm-ok':'sm-fail')+'"><span class="smi">'+(ok?'&#x2714;':'&#x2718;')+'</span><span><strong>'+(ok?'ACCESS GRANTED':'ACCESS DENIED')+'</strong><br>User: '+(d.user||'unknown')+' &middot; '+(d.confidence||0)+'%'+(d.reason?'<br>'+d.reason:'')+'</span></div>';
+        toast(ok?'Access granted':'Access denied',ok?'success':'error');
+      }catch(e){
+        rd.innerHTML='<div class="sm sm-fail"><span class="smi">&#x2718;</span><span>Connection error</span></div>';
+        toast('Connection error','error');
+      }
+      btn.disabled=false;btn.innerHTML='&#x25B8; Authenticate';
+    },'image/jpeg',0.85);
+  }catch(e){toast('Error: '+e.message,'error');setT('auth-capture','Authenticate');setD('auth-capture',false);}
+}
+
+/* LOGS */
+async function fetchLogs(){
+  const f=$('logs-filter');const url=API+'/logs/?limit=100'+(f&&f.value?'&success='+f.value:'');
+  const tb=$('logs-body');const em=$('logs-empty');if(!tb||!em)return;
+  tb.innerHTML='';
+  try{
+    const r=await fetch(url);const logs=await r.json();
+    if(logs.length===0){em.style.display='block';return;}
+    em.style.display='none';
+    logs.forEach(l=>{
+      const ok=l.success;const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+(l.user_name||'—')+'</td><td>'+(l.confidence!=null?l.confidence+'%':'—')+'</td>'+
+        '<td><span class="bdg '+(ok?'bdg-g':'bdg-r')+'">'+(ok?'Granted':'Denied')+'</span></td>'+
+        '<td>'+(l.camera_id||'—')+'</td><td>'+(l.timestamp?new Date(l.timestamp).toLocaleString():'—')+'</td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){em.style.display='block';em.innerHTML='<div class="e-icon">&#x26A0;</div><p>Failed to load</p>';}
+}
+
+/* USERS */
+async function fetchUsers(){
+  const tb=$('users-body');const em=$('users-empty');if(!tb||!em)return;
+  tb.innerHTML='';
+  try{
+    const r=await fetch(API+'/users/');const users=await r.json();
+    if(users.length===0){em.style.display='block';return;}
+    em.style.display='none';
+    users.forEach(u=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+u.id+'</td><td>'+u.name+'</td><td>'+(u.email||'—')+'</td><td>'+u.role+'</td>'+
+        '<td><span class="bdg '+(u.is_active?'bdg-g':'bdg-r')+'">'+(u.is_active?'Active':'Inactive')+'</span></td><td>'+u.embedding_count+'</td>'+
+        '<td><button class="btn btn-d btn-sm" onclick="deleteUser('+u.id+')">Delete</button></td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){em.style.display='block';em.innerHTML='<div class="e-icon">&#x26A0;</div><p>Failed to load</p>';}
+}
+
+async function deleteUser(id){
+  if(!confirm('Delete user '+id+'?'))return;
+  try{
+    const r=await fetch(API+'/users/'+id,{method:'DELETE'});
+    if(r.ok){toast('User deleted');fetchUsers();}
+    else{const d=await r.json();toast(d.detail||'Failed','error');}
+  }catch(e){toast('Delete error','error');}
+}
+
+// Init
+fetchDashboard();
+</script>
+</body>
+</html>
