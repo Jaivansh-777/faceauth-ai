@@ -58,19 +58,25 @@ assets_path = os.path.join(frontend_dist, "assets")
 if os.path.isdir(assets_path):
     app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
-cors_origins_raw = os.getenv(
-    "CORS_ORIGINS",
-    "https://*.onrender.com,http://localhost:5173,http://localhost:4173",
-)
-cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+origins_raw = os.getenv("CORS_ORIGINS", "*")
+cors_origins = [o.strip() for o in origins_raw.split(",") if o.strip()]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
-)
+if cors_origins == ["*"]:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 @app.middleware("http")
