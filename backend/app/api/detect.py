@@ -8,28 +8,62 @@ router = APIRouter(prefix="/detect", tags=["Face Detection"])
 
 @router.post("/")
 async def detect_face(file: UploadFile = File(...)):
-    if not face_service.is_ready():
-        raise HTTPException(503, "Face recognition system unavailable")
+    try:
+        contents = await file.read()
+        if len(contents) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image too large")
 
-    contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
-        raise HTTPException(400, "Image too large")
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Invalid image")
 
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    if img is None:
-        return {"face_count": 0, "status": "error", "message": "Invalid image data"}
+        if not face_service.is_ready():
+            raise HTTPException(status_code=503, detail="Face recognition system unavailable")
 
-    faces = face_service.detect_faces(img)
-    count = len(faces)
+        faces = face_service.detect_faces(img)
+        count = len(faces)
 
-    if count == 0:
-        return {"face_count": 0, "status": "no_face", "message": "No face detected"}
-    elif count == 1:
+        if count == 0:
+            return {
+                "detected": False,
+                "faces": 0,
+                "face_count": 0,
+                "status": "no_face",
+                "message": "No face detected",
+            }
+
+        if count > 1:
+            return {
+                "detected": False,
+                "faces": count,
+                "face_count": count,
+                "status": "multiple_faces",
+                "message": "Multiple faces detected",
+            }
+
         face = faces[0]
         is_good, quality_msg = face_service.check_quality(img, face)
         if not is_good:
-            return {"face_count": 1, "status": "poor_quality", "message": quality_msg}
-        return {"face_count": 1, "status": "face_locked", "message": "Face locked"}
-    else:
-        return {"face_count": count, "status": "multiple_faces", "message": "Multiple faces detected"}
+            return {
+                "detected": True,
+                "faces": 1,
+                "face_count": 1,
+                "status": "poor_quality",
+                "message": quality_msg,
+            }
+
+        return {
+            "detected": True,
+            "faces": 1,
+            "face_count": 1,
+            "status": "face_locked",
+            "message": "Face locked",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import sys
+        print(f"Detect endpoint error: {e}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail="Face detection failed")

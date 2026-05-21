@@ -26,6 +26,7 @@ export default function Enroll() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const detectRef = useRef<number>(0)
+  const detectErrorAtRef = useRef(0)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -65,13 +66,17 @@ export default function Enroll() {
         clearInterval(detectRef.current)
         return
       }
+      const now = Date.now()
+      if (now - detectErrorAtRef.current < 3000) return
       c.width = 160; c.height = 120
       c.getContext('2d')!.drawImage(v, 0, 0, 160, 120)
       c.toBlob(blob => {
         if (!blob || !mountedRef.current) return
-        detectFace(blob).then(setFaceStatus).catch(() => {})
+        detectFace(blob).then(setFaceStatus).catch(() => {
+          detectErrorAtRef.current = Date.now()
+        })
       }, 'image/jpeg', 0.7)
-    }, 600)
+    }, 1000)
   }
 
   function captureSample() {
