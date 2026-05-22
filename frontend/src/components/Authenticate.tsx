@@ -20,6 +20,7 @@ export default function Authenticate() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const detectRef = useRef<number>(0)
   const detectErrorAtRef = useRef(0)
+  const detectFailCountRef = useRef(0)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -55,16 +56,21 @@ export default function Authenticate() {
       const v = videoRef.current; const c = canvasRef.current
       if (!v || !c || processing || resultOpen) return
       const now = Date.now()
-      if (now - detectErrorAtRef.current < 3000) return
+      const backoff = Math.min(3000 * Math.pow(2, detectFailCountRef.current), 15000)
+      if (now - detectErrorAtRef.current < backoff) return
       c.width = 160; c.height = 120
       c.getContext('2d')!.drawImage(v, 0, 0, 160, 120)
       c.toBlob(blob => {
         if (!blob || !mountedRef.current) return
-        detectFace(blob).then(setFaceStatus).catch(() => {
+        detectFace(blob).then(res => {
+          setFaceStatus(res)
+          detectFailCountRef.current = 0
+        }).catch(() => {
           detectErrorAtRef.current = Date.now()
+          detectFailCountRef.current = Math.min(detectFailCountRef.current + 1, 5)
         })
       }, 'image/jpeg', 0.7)
-    }, 1000)
+    }, 1500)
   }
 
   async function handleAuthenticate() {

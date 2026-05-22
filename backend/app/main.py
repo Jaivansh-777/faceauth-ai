@@ -31,6 +31,8 @@ except Exception as e:
 from app.models.user import User, AuthLog
 print("Models loaded")
 
+from app.services.face_service import face_service
+
 app = FastAPI(
     title="FaceAuth AI",
     description="AI-powered facial authentication system",
@@ -38,14 +40,13 @@ app = FastAPI(
     redirect_slashes=False,
 )
 
-origins = [
-    "https://faceauth-ai-ashen.vercel.app",
-    "http://localhost:5173",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "https://faceauth-ai-ashen.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,6 +124,13 @@ async def startup():
             print(f"Database table creation skipped: {e}")
     else:
         print("No database — skipping table creation")
+
+    try:
+        face_service._ensure_models()
+        print("Face models pre-loaded at startup")
+    except Exception as e:
+        print(f"Face model pre-load skipped: {e}")
+
     print("FaceAuth backend ready")
 
 
@@ -177,6 +185,10 @@ def stats():
         if db:
             db.close()
 
+
+@app.get("/favicon.ico")
+async def favicon():
+    return JSONResponse({"detail": "Not found"}, status_code=204)
 
 @app.get("/{path:path}")
 async def serve_spa(path: str):

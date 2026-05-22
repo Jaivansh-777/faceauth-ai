@@ -1,13 +1,15 @@
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from app.services.face_service import face_service
+from app.utils.rate_limit import limiter
 
 router = APIRouter(prefix="/detect", tags=["Face Detection"])
 
 
 @router.post("/")
-async def detect_face(file: UploadFile = File(...)):
+@limiter.limit("60/minute")
+async def detect_face(request: Request, file: UploadFile = File(...)):
     try:
         contents = await file.read()
         if len(contents) > 10 * 1024 * 1024:
