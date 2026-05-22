@@ -2,13 +2,11 @@ import os
 import uuid
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.user import User, FaceEmbedding, AuthLog
+from app.models.user import User, FaceSample, AuthLog
 from app.services.face_service import face_service
-from app.utils.security import decrypt_embedding
-from app.utils.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -17,15 +15,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("/")
-@limiter.limit("30/minute")
 async def authenticate(
-    request: Request,
     file: UploadFile = File(...),
     camera_id: str = Form("default"),
     db: Session = Depends(get_db),
 ):
     if not face_service.is_ready():
-        raise HTTPException(503, "Face recognition system unavailable")
+        raise HTTPException(503, "Face detection system unavailable")
 
     contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:
@@ -57,9 +53,7 @@ async def authenticate(
         db.commit()
         return {"status": "denied", "reason": quality_msg, "confidence": 0.0}
 
-    embedding = face_service.get_embedding(img, face)
-    if embedding is None:
-        raise HTTPException(500, "Embedding generation failed")
+    face_img = face_service.crop_face(img, face)
 
     users = db.query(User).filter(User.is_active == True).all()
     if not users:
@@ -71,20 +65,27 @@ async def authenticate(
     best_score = 0.0
     matched_user = None
 
+    FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.3"))
+
     for user in users:
-        stored_embs = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user.id).all()
-        for se in stored_embs:
+        stored_samples = db.query(FaceSample).filter(FaceSample.user_id == user.id).all()
+        if not stored_samples:
+            continue
+        for sample in stored_samples:
             try:
-                decrypted = decrypt_embedding(se.embedding)
-                stored_emb = np.array(decrypted, dtype=np.float32)
-                score = face_service.compute_similarity(embedding, stored_emb)
+                if not os.path.exists(sample.image_path):
+                    continue
+                stored_img = cv2.imread(sample.image_path)
+                if stored_img is None:
+                    continue
+                score = face_service.compare_faces(face_img, stored_img)
                 if score > best_score:
                     best_score = score
                     matched_user = user
             except Exception:
                 continue
 
-    granted = best_score >= float(os.getenv("FACE_MATCH_THRESHOLD", "0.72"))
+    granted = best_score >= FACE_MATCH_THRESHOLD
 
     if granted and matched_user:
         from datetime import datetime

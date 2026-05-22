@@ -1,6 +1,3 @@
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -13,19 +10,14 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Face embeddings table with pgvector
-CREATE TABLE IF NOT EXISTS face_embeddings (
+-- Face samples table (stores paths to cropped face images)
+CREATE TABLE IF NOT EXISTS face_samples (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    embedding vector(512) NOT NULL,
-    sample_type VARCHAR(50) DEFAULT 'front',
+    image_path VARCHAR(512) NOT NULL,
     quality_score FLOAT DEFAULT 1.0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- Index for fast similarity search
-CREATE INDEX IF NOT EXISTS idx_face_embeddings_vector ON face_embeddings
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Authentication logs
 CREATE TABLE IF NOT EXISTS auth_logs (
@@ -53,3 +45,4 @@ CREATE TABLE IF NOT EXISTS admins (
 CREATE INDEX IF NOT EXISTS idx_auth_logs_success ON auth_logs(success);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_created_at ON auth_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_face_samples_user_id ON face_samples(user_id);

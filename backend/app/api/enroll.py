@@ -1,13 +1,12 @@
 import os
+import uuid
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.user import User, FaceEmbedding
+from app.models.user import User, FaceSample
 from app.services.face_service import face_service
-from app.utils.security import encrypt_embedding
-from app.utils.rate_limit import limiter
 
 router = APIRouter(prefix="/enroll", tags=["Enrollment"])
 
@@ -16,9 +15,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("/")
-@limiter.limit("10/minute")
 async def enroll_user(
-    request: Request,
     name: str = Form(...),
     email: str = Form(None),
     files: list[UploadFile] = File(...),
@@ -39,7 +36,7 @@ async def enroll_user(
     clean_email = email.strip() if email else None
 
     if not face_service.is_ready():
-        raise HTTPException(503, "Face recognition system unavailable")
+        raise HTTPException(503, "Face detection system unavailable")
 
     if len(files) < 5:
         raise HTTPException(400, "Need at least 5 face samples")
@@ -56,6 +53,9 @@ async def enroll_user(
     user = User(name=clean_name, email=clean_email)
     db.add(user)
     db.flush()
+
+    user_dir = os.path.join(UPLOAD_DIR, str(user.id))
+    os.makedirs(user_dir, exist_ok=True)
 
     quality_ok = 0
     errors = []
@@ -85,18 +85,19 @@ async def enroll_user(
             errors.append(f"Sample {idx + 1}: {quality_msg}")
             continue
 
-        emb = face_service.get_embedding(img, face)
-        if emb is None:
-            errors.append(f"Sample {idx + 1}: Embedding generation failed")
-            continue
+        face_img = face_service.crop_face(img, face)
+        filename = f"{uuid.uuid4().hex}.jpg"
+        filepath = os.path.join(user_dir, filename)
+        cv2.imwrite(filepath, face_img)
 
-        encrypted = encrypt_embedding(emb.tolist())
-        fe = FaceEmbedding(user_id=user.id, embedding=encrypted, quality_score=1.0)
-        db.add(fe)
+        fs = FaceSample(user_id=user.id, image_path=filepath, quality_score=1.0)
+        db.add(fs)
         quality_ok += 1
 
     if quality_ok < 3:
         db.rollback()
+        import shutil
+        shutil.rmtree(user_dir, ignore_errors=True)
         detail = f"Only {quality_ok} quality samples obtained. Need at least 3."
         if errors:
             detail += " Details: " + "; ".join(errors[:3])

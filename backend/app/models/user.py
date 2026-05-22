@@ -16,21 +16,20 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    face_embeddings = relationship("FaceEmbedding", back_populates="user", cascade="all, delete-orphan")
+    face_samples = relationship("FaceSample", back_populates="user", cascade="all, delete-orphan")
     auth_logs = relationship("AuthLog", back_populates="user")
 
 
-class FaceEmbedding(Base):
-    __tablename__ = "face_embeddings"
+class FaceSample(Base):
+    __tablename__ = "face_samples"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    embedding = Column(Text, nullable=False)
-    sample_type = Column(String(50), default="front")
+    image_path = Column(String(512), nullable=False)
     quality_score = Column(Float, default=1.0)
     created_at = Column(DateTime, server_default=func.now())
 
-    user = relationship("User", back_populates="face_embeddings")
+    user = relationship("User", back_populates="face_samples")
 
 
 class AuthLog(Base):

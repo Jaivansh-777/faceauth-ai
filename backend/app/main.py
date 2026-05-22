@@ -12,11 +12,6 @@ load_dotenv()
 
 print("FaceAuth backend starting...")
 
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from app.utils.rate_limit import limiter
-
 from app.api import enroll, auth, logs, users, detect
 
 try:
@@ -51,10 +46,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
 
 frontend_dist = None
 paths = [
@@ -127,9 +118,9 @@ async def startup():
 
     try:
         face_service._ensure_models()
-        print("Face models pre-loaded at startup")
+        print("Haar Cascade loaded at startup")
     except Exception as e:
-        print(f"Face model pre-load skipped: {e}")
+        print(f"Haar Cascade pre-load skipped: {e}")
 
     print("FaceAuth backend ready")
 
@@ -190,6 +181,7 @@ def stats():
 async def favicon():
     return JSONResponse({"detail": "Not found"}, status_code=204)
 
+
 @app.get("/{path:path}")
 async def serve_spa(path: str):
     if path.startswith(("enroll/", "auth/", "logs/", "users/", "stats", "health")):
@@ -202,6 +194,6 @@ async def serve_spa(path: str):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "10000"))
+    port = int(os.getenv("PORT", "8000"))
     print(f"Starting uvicorn on port {port}...")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port)

@@ -1,15 +1,13 @@
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services.face_service import face_service
-from app.utils.rate_limit import limiter
 
 router = APIRouter(prefix="/detect", tags=["Face Detection"])
 
 
 @router.post("/")
-@limiter.limit("60/minute")
-async def detect_face(request: Request, file: UploadFile = File(...)):
+async def detect_face(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         if len(contents) > 10 * 1024 * 1024:
@@ -21,7 +19,7 @@ async def detect_face(request: Request, file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Invalid image")
 
         if not face_service.is_ready():
-            raise HTTPException(status_code=503, detail="Face recognition system unavailable")
+            raise HTTPException(status_code=503, detail="Face detection system unavailable")
 
         faces = face_service.detect_faces(img)
         count = len(faces)
@@ -33,15 +31,6 @@ async def detect_face(request: Request, file: UploadFile = File(...)):
                 "face_count": 0,
                 "status": "no_face",
                 "message": "No face detected",
-            }
-
-        if count > 1:
-            return {
-                "detected": False,
-                "faces": count,
-                "face_count": count,
-                "status": "multiple_faces",
-                "message": "Multiple faces detected",
             }
 
         face = faces[0]
